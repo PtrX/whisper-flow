@@ -9,7 +9,8 @@ let package = Package(
         .executable(name: "WhisperFlowApp", targets: ["WhisperFlowApp"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4")
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4"),
+        .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
     ],
     targets: [
         .target(
@@ -24,7 +25,7 @@ let package = Package(
         ),
         .testTarget(
             name: "WhisperFlowCoreTests",
-            dependencies: ["WhisperFlowCore"]
+            dependencies: ["WhisperFlowCore", .product(name: "Testing", package: "swift-testing")]
         ),
     ]
 )
