@@ -37,20 +37,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         recorder = rec
 
+        menuController.updateState(.initializing)
         Task {
             do {
                 try await engine.loadModels()
-                let hotkey = HotkeyListener(recorder: rec, coordinator: coordinator)
+                let hotkey = makeHotkeyListener(recorder: rec, coordinator: coordinator)
                 if hotkey.start() {
                     listener = hotkey
-                    await MainActor.run { menuController.updateState(.ready) }
+                    menuController.updateState(.ready)
                 } else {
-                    await MainActor.run { menuController.updateState(.error("Failed to start hotkey listener — check Accessibility permission")) }
+                    menuController.updateState(.error("Failed to start hotkey listener"))
                 }
             } catch {
-                await MainActor.run { menuController.updateState(.error("Model loading failed: \(error.localizedDescription)")) }
+                menuController.updateState(.error("Model loading failed: \(error.localizedDescription)"))
             }
         }
+    }
+
+    private func makeHotkeyListener(recorder: AVAudioEngineRecorder, coordinator: PipelineCoordinator) -> HotkeyListener {
+        let hotkey = HotkeyListener(recorder: recorder, coordinator: coordinator)
+        hotkey.onStartedRecording = { [weak self] in
+            Task { @MainActor in
+                self?.menuController.updateState(.recording)
+            }
+        }
+        hotkey.onStoppedRecording = { [weak self] outcome in
+            Task { @MainActor in
+                if case .insertFailed = outcome {
+                    self?.menuController.updateState(.error("Insert failed"))
+                } else {
+                    self?.menuController.updateState(.ready)
+                }
+            }
+        }
+        return hotkey
     }
 }
 

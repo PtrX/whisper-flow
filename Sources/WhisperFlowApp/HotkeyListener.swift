@@ -2,6 +2,9 @@ import AppKit
 import WhisperFlowCore
 
 public final class HotkeyListener {
+    public var onStartedRecording: (@Sendable () -> Void)?
+    public var onStoppedRecording: (@Sendable (PipelineOutcome) -> Void)?
+
     private nonisolated(unsafe) var stateMachine = HotkeyStateMachine()
     private let recorder: any AudioRecorder
     private let coordinator: PipelineCoordinator
@@ -58,12 +61,15 @@ public final class HotkeyListener {
         switch transition {
         case .startRecording:
             recorder.startRecording()
+            onStartedRecording?()
             return nil
         case .stopRecording:
             let samples = recorder.stopRecording()
             let coordinator = self.coordinator
+            let onDone = onStoppedRecording
             Task { @MainActor in
-                _ = await coordinator.handleRecordingFinished(samples: samples)
+                let outcome = await coordinator.handleRecordingFinished(samples: samples)
+                onDone?(outcome)
             }
             return nil
         }

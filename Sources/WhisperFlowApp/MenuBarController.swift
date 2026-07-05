@@ -5,6 +5,8 @@ import WhisperFlowCore
 final class MenuBarController {
     enum AppMenuState {
         case initializing
+        case recording
+        case processing
         case ready
         case error(String)
     }
@@ -16,14 +18,25 @@ final class MenuBarController {
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        let image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "WhisperFlow")
-        image?.isTemplate = true
-        statusItem.button?.image = image
         rebuildMenu()
     }
 
     func updateState(_ state: AppMenuState) {
         currentState = state
+        updateIcon(state)
+    }
+
+    private func updateIcon(_ state: AppMenuState) {
+        let symbolName: String
+        switch state {
+        case .initializing, .ready: symbolName = "mic.fill"
+        case .recording: symbolName = "record.circle"
+        case .processing: symbolName = "waveform"
+        case .error: symbolName = "exclamationmark.triangle"
+        }
+        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "WhisperFlow")
+        image?.isTemplate = true
+        statusItem.button?.image = image
     }
 
     private func rebuildMenu() {
@@ -35,6 +48,12 @@ final class MenuBarController {
             switch currentState {
             case .initializing:
                 menu.addItem(withTitle: "Loading models…", action: nil, keyEquivalent: "")
+            case .recording:
+                let item = menu.addItem(withTitle: "Recording… press Right ⌥ to stop", action: nil, keyEquivalent: "")
+                item.isEnabled = false
+            case .processing:
+                let item = menu.addItem(withTitle: "Transcribing…", action: nil, keyEquivalent: "")
+                item.isEnabled = false
             case .ready:
                 let item = menu.addItem(withTitle: "Ready — hold Right ⌥ to dictate", action: nil, keyEquivalent: "")
                 item.isEnabled = false

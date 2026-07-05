@@ -1,4 +1,4 @@
-public enum PipelineOutcome: Equatable {
+public enum PipelineOutcome: Equatable, Sendable {
     case discarded
     case inserted(usedFallback: Bool)
     case transcriptionFailed
