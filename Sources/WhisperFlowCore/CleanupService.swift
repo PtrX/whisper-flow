@@ -6,7 +6,7 @@ public enum CleanupError: Error {
     case decodingFailed
 }
 
-public protocol CleanupService {
+public protocol CleanupService: Sendable {
     func cleanup(rawText: String) async throws -> String
 }
 

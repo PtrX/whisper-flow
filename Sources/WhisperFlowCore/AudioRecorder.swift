@@ -1,11 +1,11 @@
 @preconcurrency import AVFoundation
 
-public protocol AudioRecorder {
+public protocol AudioRecorder: Sendable {
     func startRecording()
     func stopRecording() -> [Float]
 }
 
-public final class FakeAudioRecorder: AudioRecorder {
+public final class FakeAudioRecorder: AudioRecorder, @unchecked Sendable {
     private var buffer: [Float] = []
 
     public init() {}
@@ -25,7 +25,7 @@ public final class FakeAudioRecorder: AudioRecorder {
     }
 }
 
-public final class AVAudioEngineRecorder: AudioRecorder {
+public final class AVAudioEngineRecorder: AudioRecorder, @unchecked Sendable {
     private let engine = AVAudioEngine()
     private var buffer: [Float] = []
     private let targetFormat = AVAudioFormat(

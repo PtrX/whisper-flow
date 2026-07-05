@@ -1,4 +1,4 @@
-public protocol TranscriptionEngine {
+public protocol TranscriptionEngine: Sendable {
     func transcribe(samples: [Float]) async throws -> String
 }
 

@@ -1,7 +1,7 @@
 @preconcurrency import FluidAudio
 import Foundation
 
-public final class ParakeetEngine: TranscriptionEngine {
+public final class ParakeetEngine: TranscriptionEngine, @unchecked Sendable {
     private let manager: UnifiedAsrManager
 
     public init(

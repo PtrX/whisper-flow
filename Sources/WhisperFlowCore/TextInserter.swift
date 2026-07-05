@@ -1,11 +1,11 @@
 import AppKit
 import ApplicationServices
 
-public protocol TextInserter {
+public protocol TextInserter: Sendable {
     func insert(text: String) throws
 }
 
-public struct CompositeTextInserter: TextInserter {
+public struct CompositeTextInserter: TextInserter, @unchecked Sendable {
     private let primary: (String) throws -> Void
     private let fallback: (String) throws -> Void
 

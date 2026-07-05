@@ -1,7 +1,7 @@
 import Testing
 @testable import WhisperFlowCore
 
-private struct FakeCleanupService: CleanupService {
+private struct FakeCleanupService: CleanupService, @unchecked Sendable {
     var textToReturn: String
     var errorToThrow: Error?
     func cleanup(rawText: String) async throws -> String {
@@ -10,7 +10,7 @@ private struct FakeCleanupService: CleanupService {
     }
 }
 
-private final class FakeTextInserter: TextInserter {
+private final class FakeTextInserter: TextInserter, @unchecked Sendable {
     var insertedText: String?
     var errorToThrow: Error?
     func insert(text: String) throws {

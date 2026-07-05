@@ -5,7 +5,7 @@ public enum PipelineOutcome: Equatable {
     case insertFailed
 }
 
-public final class PipelineCoordinator {
+public final class PipelineCoordinator: @unchecked Sendable {
     private static let minimumSamples = 4800 // 0.3s at 16kHz
 
     private let transcriptionEngine: TranscriptionEngine
