@@ -5,7 +5,8 @@ public final class HotkeyListener {
     public var onStartedRecording: (@Sendable () -> Void)?
     public var onStoppedRecording: (@Sendable (PipelineOutcome) -> Void)?
 
-    private nonisolated(unsafe) var stateMachine = HotkeyStateMachine()
+    private let hotkeyOption: HotkeyOption
+    private nonisolated(unsafe) var stateMachine: HotkeyStateMachine
     private nonisolated(unsafe) var doubleTapDetector = DoubleTapDetector()
     private nonisolated(unsafe) var pressStartTime: TimeInterval?
     private let recorder: any AudioRecorder
@@ -13,9 +14,11 @@ public final class HotkeyListener {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
-    public init(recorder: AudioRecorder, coordinator: PipelineCoordinator) {
+    public init(recorder: AudioRecorder, coordinator: PipelineCoordinator, hotkeyOption: HotkeyOption = .rightOption) {
         self.recorder = recorder
         self.coordinator = coordinator
+        self.hotkeyOption = hotkeyOption
+        self.stateMachine = HotkeyStateMachine(targetKeyCode: hotkeyOption.keyCode)
     }
 
     deinit { stop() }
@@ -57,7 +60,7 @@ public final class HotkeyListener {
             return Unmanaged.passUnretained(event)
         }
         let keyCode = Int64(event.getIntegerValueField(.keyboardEventKeycode))
-        let isDown = event.flags.contains(.maskAlternate)
+        let isDown = event.flags.contains(hotkeyOption.flagMask)
         guard let transition = stateMachine.handle(keyCode: keyCode, isDown: isDown) else {
             return Unmanaged.passUnretained(event)
         }
