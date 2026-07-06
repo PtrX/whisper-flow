@@ -46,7 +46,7 @@ Ausführlich im Git-Log ab Commit `e195eb8` bis `393b881`. Kurzfassung der 5 Bug
 Peter hat diese Reihenfolge gewählt: **Settings-Fenster (✅ fertig) → Verlauf (✅ fertig) → VAD (Voice Activity Detection statt Taste halten) → Autostart bei Login.**
 
 - **VAD** — nächstes dran. Größter Eingriff, ändert das Interaktionsmodell (halten vs. antippen+Auto-Stop bei Stille). Braucht eigene Design-Runde (noch nicht gebrainstormt).
-- **Autostart bei Login** — kleinster Umfang, zuletzt eingeplant.
+- **Autostart bei Login** — kleinster Umfang, zuletzt eingeplant. **Aktuell NICHT aktiviert** (kein LaunchAgent, kein Login-Item registriert — geprüft via `ls ~/Library/LaunchAgents/` und `osascript` Login-Items) — Peter muss die App nach jedem Neustart weiterhin manuell öffnen.
 
 ## Setup-Voraussetzungen (unverändert)
 
