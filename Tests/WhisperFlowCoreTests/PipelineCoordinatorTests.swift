@@ -32,7 +32,20 @@ struct PipelineCoordinatorTests {
         let outcome = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
 
         #expect(outcome == .inserted(usedFallback: false))
-        #expect(inserter.insertedText == "Hallo Welt.")
+        #expect(inserter.insertedText == "Hallo Welt. ")
+    }
+
+    @Test func insertedText_doesNotDuplicateTrailingSpace_whenAlreadyPresent() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt. "),
+            textInserter: inserter
+        )
+
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+
+        #expect(inserter.insertedText == "Hallo Welt. ")
     }
 
     @Test func shortRecording_isDiscardedSilently() async {
@@ -61,7 +74,7 @@ struct PipelineCoordinatorTests {
         let outcome = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
 
         #expect(outcome == .inserted(usedFallback: true))
-        #expect(inserter.insertedText == "raw text")
+        #expect(inserter.insertedText == "raw text ")
     }
 
     @Test func transcriptionFailure_returnsFailedOutcome() async {

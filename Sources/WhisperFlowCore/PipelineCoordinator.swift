@@ -46,6 +46,11 @@ public final class PipelineCoordinator: @unchecked Sendable {
             usedFallback = true
         }
 
+        // Trailing space so back-to-back dictations don't run into each other.
+        if !textToInsert.hasSuffix(" ") {
+            textToInsert += " "
+        }
+
         do {
             try textInserter.insert(text: textToInsert)
         } catch {
