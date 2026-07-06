@@ -6,9 +6,10 @@ swift build -c release
 APP_NAME="WhisperFlow"
 BUNDLE="$APP_NAME.app"
 rm -rf "$BUNDLE"
-mkdir -p "$BUNDLE/Contents/MacOS"
+mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$(swift build -c release --show-bin-path)/WhisperFlowApp" "$BUNDLE/Contents/MacOS/"
 cp Resources/Info.plist "$BUNDLE/Contents/Info.plist"
+cp Resources/AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 # The linker's automatic ad-hoc signature is created before Info.plist is copied in,
 # so it doesn't bind the bundle identifier — re-sign explicitly so TCC (Accessibility/
