@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menuController = MenuBarController()
     private var listener: HotkeyListener?
     private var recorder: AVAudioEngineRecorder?
+    private var accessibilityPollTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -16,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let status = PermissionsManager.currentStatus()
         switch status.guidance {
         case .ready:
+            accessibilityPollTimer?.invalidate()
+            accessibilityPollTimer = nil
             startEngine()
         case .needsMicrophone:
             PermissionsManager.requestMicrophoneAccess { _ in
@@ -23,6 +26,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         case .needsAccessibility:
             PermissionsManager.promptForAccessibilityAccess()
+            startPollingForAccessibilityGrant()
+        }
+    }
+
+    // AXIsProcessTrustedWithOptions has no completion callback — granting access in
+    // System Settings happens fully out-of-band, so this is the only way to notice it.
+    private func startPollingForAccessibilityGrant() {
+        guard accessibilityPollTimer == nil else { return }
+        accessibilityPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if PermissionsManager.currentStatus().accessibilityGranted {
+                    self.checkPermissionsAndStart()
+                }
+            }
         }
     }
 
