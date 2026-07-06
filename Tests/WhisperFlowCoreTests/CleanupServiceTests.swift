@@ -38,6 +38,18 @@ final class StubURLProtocol: URLProtocol {
         return URLSession(configuration: config)
     }
 
+    private func makeSettings(
+        timeout: TimeInterval = 3.0,
+        model: String = "qwen3:4b",
+        enabled: Bool = true
+    ) -> SettingsStore {
+        let store = SettingsStore(defaults: UserDefaults(suiteName: "test-\(UUID().uuidString)")!)
+        store.cleanupTimeout = timeout
+        store.ollamaModel = model
+        store.cleanupEnabled = enabled
+        return store
+    }
+
     init() {
         StubURLProtocol.responseData = nil
         StubURLProtocol.error = nil
@@ -49,7 +61,7 @@ final class StubURLProtocol: URLProtocol {
         StubURLProtocol.responseData = """
         {"response": "Können Sie mir bitte das Protokoll schicken?"}
         """.data(using: .utf8)
-        let service = OllamaCleanupService(session: makeSession(), timeout: 3.0)
+        let service = OllamaCleanupService(session: makeSession(), settings: makeSettings())
 
         let result = try await service.cleanup(rawText: "äh können sie mir bitte äh das protokoll schicken")
 
@@ -58,7 +70,7 @@ final class StubURLProtocol: URLProtocol {
 
     @Test func cleanup_throwsTimeout_whenSlowerThanConfiguredTimeout() async {
         StubURLProtocol.delay = 0.2
-        let service = OllamaCleanupService(session: makeSession(), timeout: 0.05)
+        let service = OllamaCleanupService(session: makeSession(), settings: makeSettings(timeout: 0.05))
 
         do {
             _ = try await service.cleanup(rawText: "test")
@@ -72,7 +84,7 @@ final class StubURLProtocol: URLProtocol {
 
     @Test func cleanup_throws_onNon200Status() async {
         StubURLProtocol.statusCode = 500
-        let service = OllamaCleanupService(session: makeSession(), timeout: 3.0)
+        let service = OllamaCleanupService(session: makeSession(), settings: makeSettings())
 
         do {
             _ = try await service.cleanup(rawText: "test")
@@ -81,6 +93,38 @@ final class StubURLProtocol: URLProtocol {
             // expected
         } catch {
             Issue.record("expected CleanupError, got \(error)")
+        }
+    }
+
+    @Test func cleanup_throwsDisabled_withoutTouchingTheNetwork() async {
+        StubURLProtocol.responseData = "{\"response\": \"should never be fetched\"}".data(using: .utf8)
+        let service = OllamaCleanupService(session: makeSession(), settings: makeSettings(enabled: false))
+
+        do {
+            _ = try await service.cleanup(rawText: "test")
+            Issue.record("expected CleanupError.disabled")
+        } catch CleanupError.disabled {
+            // expected
+        } catch {
+            Issue.record("expected CleanupError.disabled, got \(error)")
+        }
+    }
+
+    @Test func cleanup_readsSettingsFreshOnEveryCall() async throws {
+        StubURLProtocol.responseData = "{\"response\": \"ok\"}".data(using: .utf8)
+        let settings = makeSettings(enabled: true)
+        let service = OllamaCleanupService(session: makeSession(), settings: settings)
+
+        _ = try await service.cleanup(rawText: "first call works")
+
+        settings.cleanupEnabled = false
+        do {
+            _ = try await service.cleanup(rawText: "second call must see the change")
+            Issue.record("expected CleanupError.disabled on second call")
+        } catch CleanupError.disabled {
+            // expected
+        } catch {
+            Issue.record("expected CleanupError.disabled, got \(error)")
         }
     }
 }

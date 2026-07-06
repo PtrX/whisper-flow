@@ -4,6 +4,7 @@ public enum CleanupError: Error {
     case timeout
     case badStatus(Int)
     case decodingFailed
+    case disabled
 }
 
 public protocol CleanupService: Sendable {
@@ -12,19 +13,16 @@ public protocol CleanupService: Sendable {
 
 public struct OllamaCleanupService: CleanupService, Sendable {
     private let session: URLSession
-    private let timeout: TimeInterval
-    private let model: String
+    private let settings: SettingsStore
     private let endpoint: URL
 
     public init(
         session: URLSession = .shared,
-        timeout: TimeInterval = 3.0,
-        model: String = "qwen3:4b",
+        settings: SettingsStore = SettingsStore(),
         endpoint: URL = URL(string: "http://localhost:11434/api/generate")!
     ) {
         self.session = session
-        self.timeout = timeout
-        self.model = model
+        self.settings = settings
         self.endpoint = endpoint
     }
 
@@ -48,6 +46,10 @@ public struct OllamaCleanupService: CleanupService, Sendable {
     """
 
     public func cleanup(rawText: String) async throws -> String {
+        guard settings.cleanupEnabled else { throw CleanupError.disabled }
+        let model = settings.ollamaModel
+        let timeout = settings.cleanupTimeout
+
         let prompt = "\(Self.systemPrompt)\n\nDictated text:\n\(rawText)"
         let body = GenerateRequest(model: model, prompt: prompt, stream: false)
 
