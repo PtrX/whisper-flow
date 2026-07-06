@@ -1,6 +1,7 @@
 public enum PipelineOutcome: Equatable, Sendable {
     case discarded
     case inserted(usedFallback: Bool)
+    case reinserted
     case transcriptionFailed
     case insertFailed
 }
@@ -11,6 +12,7 @@ public final class PipelineCoordinator: @unchecked Sendable {
     private let transcriptionEngine: TranscriptionEngine
     private let cleanupService: CleanupService
     private let textInserter: TextInserter
+    private var lastInsertedText: String?
 
     public init(
         transcriptionEngine: TranscriptionEngine,
@@ -57,6 +59,21 @@ public final class PipelineCoordinator: @unchecked Sendable {
             return .insertFailed
         }
 
+        lastInsertedText = textToInsert
         return .inserted(usedFallback: usedFallback)
+    }
+
+    /// Re-inserts the most recently inserted text, e.g. when the cursor wasn't
+    /// where the user expected and the dictation landed somewhere unseen.
+    public func reinsertLastTranscription() -> PipelineOutcome {
+        guard let lastInsertedText else {
+            return .discarded
+        }
+        do {
+            try textInserter.insert(text: lastInsertedText)
+        } catch {
+            return .insertFailed
+        }
+        return .reinserted
     }
 }

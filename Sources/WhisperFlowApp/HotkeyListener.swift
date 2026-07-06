@@ -6,6 +6,8 @@ public final class HotkeyListener {
     public var onStoppedRecording: (@Sendable (PipelineOutcome) -> Void)?
 
     private nonisolated(unsafe) var stateMachine = HotkeyStateMachine()
+    private nonisolated(unsafe) var doubleTapDetector = DoubleTapDetector()
+    private nonisolated(unsafe) var pressStartTime: TimeInterval?
     private let recorder: any AudioRecorder
     private let coordinator: PipelineCoordinator
     private var eventTap: CFMachPort?
@@ -59,15 +61,28 @@ public final class HotkeyListener {
         guard let transition = stateMachine.handle(keyCode: keyCode, isDown: isDown) else {
             return Unmanaged.passUnretained(event)
         }
+        let now = TimeInterval(event.timestamp) / 1_000_000_000
+
         switch transition {
         case .startRecording:
+            pressStartTime = now
             recorder.startRecording()
             onStartedRecording?()
             return nil
         case .stopRecording:
             let samples = recorder.stopRecording()
+            let pressDuration = now - (pressStartTime ?? now)
+            let isDoubleTap = doubleTapDetector.handleRelease(pressDuration: pressDuration, at: now)
             let coordinator = self.coordinator
             let onDone = onStoppedRecording
+
+            if isDoubleTap {
+                Task { @MainActor in
+                    onDone?(coordinator.reinsertLastTranscription())
+                }
+                return nil
+            }
+
             Task { @MainActor in
                 let outcome = await coordinator.handleRecordingFinished(samples: samples)
                 onDone?(outcome)

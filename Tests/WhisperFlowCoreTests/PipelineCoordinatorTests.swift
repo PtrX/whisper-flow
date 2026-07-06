@@ -12,10 +12,12 @@ private struct FakeCleanupService: CleanupService, @unchecked Sendable {
 
 private final class FakeTextInserter: TextInserter, @unchecked Sendable {
     var insertedText: String?
+    var allInsertedTexts: [String] = []
     var errorToThrow: Error?
     func insert(text: String) throws {
         if let errorToThrow { throw errorToThrow }
         insertedText = text
+        allInsertedTexts.append(text)
     }
 }
 
@@ -103,6 +105,51 @@ struct PipelineCoordinatorTests {
         )
 
         let outcome = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+
+        #expect(outcome == .insertFailed)
+    }
+
+    @Test func reinsertLastTranscription_afterSuccessfulInsert_insertsSameTextAgain() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+
+        let outcome = coordinator.reinsertLastTranscription()
+
+        #expect(outcome == .reinserted)
+        #expect(inserter.allInsertedTexts == ["Hallo Welt. ", "Hallo Welt. "])
+    }
+
+    @Test func reinsertLastTranscription_withNothingInsertedYet_returnsDiscarded() {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "unused"),
+            cleanupService: FakeCleanupService(textToReturn: "unused"),
+            textInserter: inserter
+        )
+
+        let outcome = coordinator.reinsertLastTranscription()
+
+        #expect(outcome == .discarded)
+        #expect(inserter.allInsertedTexts.isEmpty)
+    }
+
+    @Test func reinsertLastTranscription_whenInsertThrows_returnsInsertFailed() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+        struct InsertBoom: Error {}
+        inserter.errorToThrow = InsertBoom()
+
+        let outcome = coordinator.reinsertLastTranscription()
 
         #expect(outcome == .insertFailed)
     }
