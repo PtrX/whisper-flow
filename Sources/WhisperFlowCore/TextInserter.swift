@@ -72,9 +72,16 @@ public enum ClipboardTextInserter {
 
 public extension CompositeTextInserter {
     static func production() -> CompositeTextInserter {
+        // Clipboard+paste is primary, not AX: many Chromium/Electron-based apps
+        // (Claude Desktop, Slack, Discord, VS Code, Google Docs) report .success
+        // from AXUIElementSetAttributeValue without actually applying the text —
+        // there is no reliable way to detect that false-success from the return
+        // code alone, so CompositeTextInserter's error-triggered fallback never
+        // fires for them. Cmd+V works universally; AX is kept only as a fallback
+        // for the rare case clipboard/paste itself is unavailable.
         CompositeTextInserter(
-            primary: { try AXTextInserter.insert(text: $0) },
-            fallback: { try ClipboardTextInserter.insert(text: $0) }
+            primary: { try ClipboardTextInserter.insert(text: $0) },
+            fallback: { try AXTextInserter.insert(text: $0) }
         )
     }
 }
