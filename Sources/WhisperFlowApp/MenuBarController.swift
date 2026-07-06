@@ -4,6 +4,8 @@ import WhisperFlowCore
 @MainActor
 final class MenuBarController {
     var onOpenSettings: (() -> Void)?
+    var historyProvider: (() -> [String])?
+    var onSelectHistoryEntry: ((Int) -> Void)?
 
     enum AppMenuState {
         case initializing
@@ -76,6 +78,10 @@ final class MenuBarController {
         }
 
         menu.addItem(.separator())
+        let historyItem = menu.addItem(withTitle: "History", action: nil, keyEquivalent: "")
+        historyItem.submenu = buildHistorySubmenu()
+
+        menu.addItem(.separator())
         let settingsItem = menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
 
@@ -84,6 +90,27 @@ final class MenuBarController {
         quit.target = self
 
         statusItem.menu = menu
+    }
+
+    private func buildHistorySubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        let entries = historyProvider?() ?? []
+        if entries.isEmpty {
+            let empty = submenu.addItem(withTitle: "No dictations yet", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+        } else {
+            for (index, text) in entries.enumerated() {
+                let preview = text.count > 40 ? String(text.prefix(40)) + "…" : text
+                let item = submenu.addItem(withTitle: preview, action: #selector(selectHistoryEntry(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = index
+            }
+        }
+        return submenu
+    }
+
+    @objc private func selectHistoryEntry(_ sender: NSMenuItem) {
+        onSelectHistoryEntry?(sender.tag)
     }
 
     @objc private func requestMic() {
