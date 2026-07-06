@@ -31,4 +31,16 @@ import Testing
         #expect(transition == nil)
         #expect(machine.current == .recording)
     }
+
+    @Test func customTargetKeyCode_triggersTransitions() {
+        var machine = HotkeyStateMachine(targetKeyCode: 54)
+        #expect(machine.handle(keyCode: 54, isDown: true) == .startRecording)
+        #expect(machine.handle(keyCode: 54, isDown: false) == .stopRecording)
+    }
+
+    @Test func customTargetKeyCode_ignoresTheOldDefaultKey() {
+        var machine = HotkeyStateMachine(targetKeyCode: 54)
+        #expect(machine.handle(keyCode: 61, isDown: true) == nil)
+        #expect(machine.current == .idle)
+    }
 }

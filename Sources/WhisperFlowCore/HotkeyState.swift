@@ -11,12 +11,15 @@ public enum HotkeyTransition: Equatable {
 public struct HotkeyStateMachine {
     public static let rightOptionKeyCode: Int64 = 61
 
+    private let targetKeyCode: Int64
     public private(set) var current: HotkeyPhase = .idle
 
-    public init() {}
+    public init(targetKeyCode: Int64 = HotkeyStateMachine.rightOptionKeyCode) {
+        self.targetKeyCode = targetKeyCode
+    }
 
     public mutating func handle(keyCode: Int64, isDown: Bool) -> HotkeyTransition? {
-        guard keyCode == Self.rightOptionKeyCode else { return nil }
+        guard keyCode == targetKeyCode else { return nil }
 
         switch (current, isDown) {
         case (.idle, true):
