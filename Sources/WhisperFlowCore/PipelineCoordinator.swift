@@ -12,7 +12,7 @@ public final class PipelineCoordinator: @unchecked Sendable {
     private let transcriptionEngine: TranscriptionEngine
     private let cleanupService: CleanupService
     private let textInserter: TextInserter
-    private var lastInsertedText: String?
+    private var history = DictationHistory()
 
     public init(
         transcriptionEngine: TranscriptionEngine,
@@ -59,18 +59,34 @@ public final class PipelineCoordinator: @unchecked Sendable {
             return .insertFailed
         }
 
-        lastInsertedText = textToInsert
+        history.record(textToInsert)
         return .inserted(usedFallback: usedFallback)
     }
 
     /// Re-inserts the most recently inserted text, e.g. when the cursor wasn't
     /// where the user expected and the dictation landed somewhere unseen.
     public func reinsertLastTranscription() -> PipelineOutcome {
-        guard let lastInsertedText else {
+        guard let mostRecent = history.all.first else {
             return .discarded
         }
         do {
-            try textInserter.insert(text: lastInsertedText)
+            try textInserter.insert(text: mostRecent)
+        } catch {
+            return .insertFailed
+        }
+        return .reinserted
+    }
+
+    /// Past dictations, most recent first. Empty until the first successful insert.
+    public var historyEntries: [String] { history.all }
+
+    /// Re-inserts a specific history entry (from `historyEntries`) at the cursor.
+    public func insertHistoryEntry(at index: Int) -> PipelineOutcome {
+        guard history.all.indices.contains(index) else {
+            return .discarded
+        }
+        do {
+            try textInserter.insert(text: history.all[index])
         } catch {
             return .insertFailed
         }

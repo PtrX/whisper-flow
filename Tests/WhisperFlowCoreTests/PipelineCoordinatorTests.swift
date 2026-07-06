@@ -153,4 +153,73 @@ struct PipelineCoordinatorTests {
 
         #expect(outcome == .insertFailed)
     }
+
+    @Test func historyEntries_listsPastDictationsMostRecentFirst() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.2, count: 16000))
+
+        #expect(coordinator.historyEntries == ["Hallo Welt. ", "Hallo Welt. "])
+    }
+
+    @Test func historyEntries_isEmpty_beforeAnyDictation() {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "unused"),
+            cleanupService: FakeCleanupService(textToReturn: "unused"),
+            textInserter: inserter
+        )
+
+        #expect(coordinator.historyEntries.isEmpty)
+    }
+
+    @Test func insertHistoryEntry_insertsTheChosenEntry() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+
+        let outcome = coordinator.insertHistoryEntry(at: 0)
+
+        #expect(outcome == .reinserted)
+        #expect(inserter.allInsertedTexts == ["Hallo Welt. ", "Hallo Welt. "])
+    }
+
+    @Test func insertHistoryEntry_withOutOfRangeIndex_returnsDiscarded() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+
+        let outcome = coordinator.insertHistoryEntry(at: 5)
+
+        #expect(outcome == .discarded)
+    }
+
+    @Test func insertHistoryEntry_whenInsertThrows_returnsInsertFailed() async {
+        let inserter = FakeTextInserter()
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: FakeTranscriptionEngine(textToReturn: "hallo welt"),
+            cleanupService: FakeCleanupService(textToReturn: "Hallo Welt."),
+            textInserter: inserter
+        )
+        _ = await coordinator.handleRecordingFinished(samples: Array(repeating: 0.1, count: 16000))
+        struct InsertBoom: Error {}
+        inserter.errorToThrow = InsertBoom()
+
+        let outcome = coordinator.insertHistoryEntry(at: 0)
+
+        #expect(outcome == .insertFailed)
+    }
 }
