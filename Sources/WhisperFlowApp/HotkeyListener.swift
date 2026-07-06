@@ -19,14 +19,15 @@ public final class HotkeyListener {
     deinit { stop() }
 
     public func start() -> Bool {
-        let eventMask =
-            (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.keyUp.rawValue)
+        // Right-Option pressed alone is a pure modifier key — macOS never sends
+        // .keyDown/.keyUp for it, only .flagsChanged. Listening for keyDown/keyUp
+        // meant this tap could never see the hotkey at all.
+        let eventMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(eventMask),
+            eventsOfInterest: eventMask,
             callback: { proxy, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let listener = Unmanaged<HotkeyListener>.fromOpaque(refcon).takeUnretainedValue()
@@ -54,7 +55,7 @@ public final class HotkeyListener {
             return Unmanaged.passUnretained(event)
         }
         let keyCode = Int64(event.getIntegerValueField(.keyboardEventKeycode))
-        let isDown = type == .keyDown
+        let isDown = event.flags.contains(.maskAlternate)
         guard let transition = stateMachine.handle(keyCode: keyCode, isDown: isDown) else {
             return Unmanaged.passUnretained(event)
         }
