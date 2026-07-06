@@ -18,6 +18,10 @@ final class MenuBarController {
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // rebuildMenu() only populates the dropdown — without setting an image/title here too,
+        // the status item button is empty and renders as an invisible sliver in the menu bar
+        // until updateState() first fires, which never happens while gated on permissions.
+        updateIcon(currentState)
         rebuildMenu()
     }
 
