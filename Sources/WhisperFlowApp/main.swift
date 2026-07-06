@@ -18,6 +18,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuController.onOpenSettings = { [weak self] in
             self?.showSettings()
         }
+        menuController.historyProvider = { [weak self] in
+            self?.coordinator?.historyEntries ?? []
+        }
+        menuController.onSelectHistoryEntry = { [weak self] index in
+            guard let self, let coordinator = self.coordinator else { return }
+            let outcome = coordinator.insertHistoryEntry(at: index)
+            if case .insertFailed = outcome {
+                self.menuController.updateState(.error("Insert failed"))
+            } else {
+                self.menuController.updateState(.ready)
+            }
+        }
         checkPermissionsAndStart()
     }
 
