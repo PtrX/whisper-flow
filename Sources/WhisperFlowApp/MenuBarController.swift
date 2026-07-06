@@ -3,6 +3,8 @@ import WhisperFlowCore
 
 @MainActor
 final class MenuBarController {
+    var onOpenSettings: (() -> Void)?
+
     enum AppMenuState {
         case initializing
         case recording
@@ -74,6 +76,10 @@ final class MenuBarController {
         }
 
         menu.addItem(.separator())
+        let settingsItem = menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+
+        menu.addItem(.separator())
         let quit = menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
 
@@ -88,6 +94,10 @@ final class MenuBarController {
 
     @objc private func requestAX() {
         PermissionsManager.promptForAccessibilityAccess()
+    }
+
+    @objc private func openSettings() {
+        onOpenSettings?()
     }
 
     @objc private func quit() {

@@ -4,13 +4,50 @@ import WhisperFlowCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menuController = MenuBarController()
+    private let settings = SettingsStore()
     private var listener: HotkeyListener?
     private var recorder: AVAudioEngineRecorder?
+    private var settingsWindowController: SettingsWindowController?
+    private var coordinator: PipelineCoordinator?
     private var accessibilityPollTimer: Timer?
+    private var isRecording = false
+    private var pendingHotkeyOption: HotkeyOption?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        menuController.onOpenSettings = { [weak self] in
+            self?.showSettings()
+        }
         checkPermissionsAndStart()
+    }
+
+    private func showSettings() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(settings: settings) { [weak self] newOption in
+                self?.applyHotkeyChange(newOption)
+            }
+        }
+        settingsWindowController?.show()
+    }
+
+    // Per spec, defer hotkey changes made mid-recording until capture finishes.
+    private func applyHotkeyChange(_ option: HotkeyOption) {
+        if isRecording {
+            pendingHotkeyOption = option
+        } else {
+            restartHotkeyListener(with: option)
+        }
+    }
+
+    private func restartHotkeyListener(with option: HotkeyOption) {
+        guard let recorder, let coordinator else { return }
+        listener?.stop()
+        let hotkey = makeHotkeyListener(recorder: recorder, coordinator: coordinator, hotkeyOption: option)
+        if hotkey.start() {
+            listener = hotkey
+        } else {
+            menuController.updateState(.error("Failed to restart hotkey listener"))
+        }
     }
 
     private func checkPermissionsAndStart() {
@@ -47,19 +84,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startEngine() {
         let rec = AVAudioEngineRecorder()
         let engine = ParakeetEngine()
-        let cleanup = OllamaCleanupService()
+        let cleanup = OllamaCleanupService(settings: settings)
         let coordinator = PipelineCoordinator(
             transcriptionEngine: engine,
             cleanupService: cleanup,
             textInserter: CompositeTextInserter.production()
         )
         recorder = rec
+        self.coordinator = coordinator
 
         menuController.updateState(.initializing)
         Task {
             do {
                 try await engine.loadModels()
-                let hotkey = makeHotkeyListener(recorder: rec, coordinator: coordinator)
+                let hotkey = makeHotkeyListener(recorder: rec, coordinator: coordinator, hotkeyOption: settings.hotkeyOption)
                 if hotkey.start() {
                     listener = hotkey
                     menuController.updateState(.ready)
@@ -72,19 +110,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func makeHotkeyListener(recorder: AVAudioEngineRecorder, coordinator: PipelineCoordinator) -> HotkeyListener {
-        let hotkey = HotkeyListener(recorder: recorder, coordinator: coordinator)
+    private func makeHotkeyListener(
+        recorder: AVAudioEngineRecorder,
+        coordinator: PipelineCoordinator,
+        hotkeyOption: HotkeyOption
+    ) -> HotkeyListener {
+        let hotkey = HotkeyListener(recorder: recorder, coordinator: coordinator, hotkeyOption: hotkeyOption)
         hotkey.onStartedRecording = { [weak self] in
             Task { @MainActor in
+                self?.isRecording = true
                 self?.menuController.updateState(.recording)
             }
         }
         hotkey.onStoppedRecording = { [weak self] outcome in
             Task { @MainActor in
+                guard let self else { return }
+                self.isRecording = false
                 if case .insertFailed = outcome {
-                    self?.menuController.updateState(.error("Insert failed"))
+                    self.menuController.updateState(.error("Insert failed"))
                 } else {
-                    self?.menuController.updateState(.ready)
+                    self.menuController.updateState(.ready)
+                }
+                if let pending = self.pendingHotkeyOption {
+                    self.pendingHotkeyOption = nil
+                    self.restartHotkeyListener(with: pending)
                 }
             }
         }
