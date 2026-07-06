@@ -1,6 +1,6 @@
 # HANDOFF — WhisperFlow (private, lokale Wispr-Flow-Alternative)
 
-**Stand:** 2026-07-06 · Session 3 (Bugfixes, Icon, GitHub-Release, Settings-Fenster)
+**Stand:** 2026-07-06 · Session 3 (Bugfixes, Icon, GitHub-Release, Settings-Fenster, Verlauf)
 
 ## Status: Läuft produktiv bei Peter, aktiv weiterentwickelt
 
@@ -8,17 +8,18 @@ App ist installiert (`/Applications/WhisperFlow.app`), läuft täglich, diktiert
 
 ## Was funktioniert
 
-- Push-to-talk (Standard: rechte ⌥, jetzt konfigurierbar), Deutsch/Russisch-ASR via Parakeet v3, Ollama-Cleanup mit Rohtext-Fallback, Text-Einfügen (Clipboard+⌘V primär, AX-API Fallback), Doppel-Tap zum erneuten Einfügen der letzten Transkription, Trailing-Space nach jedem Diktat, eigenes App-Icon, **Settings-Fenster** (Hotkey/Modell/Timeout/Cleanup an-aus, sofort wirksam, persistiert).
-- 46 Unit-Tests, alle grün. `swift build && swift test` vor jedem Deploy prüfen.
+- Push-to-talk (Standard: rechte ⌥, jetzt konfigurierbar), Deutsch/Russisch-ASR via Parakeet v3, Ollama-Cleanup mit Rohtext-Fallback, Text-Einfügen (Clipboard+⌘V primär, AX-API Fallback), Doppel-Tap zum erneuten Einfügen der letzten Transkription, Trailing-Space nach jedem Diktat, eigenes App-Icon, Settings-Fenster (Hotkey/Modell/Timeout/Cleanup an-aus, sofort wirksam, persistiert), **Verlauf** (History-Untermenü, letzte 10 Diktate, nur im Speicher, Klick fügt erneut ein).
+- 54 Unit-Tests, alle grün. `swift build && swift test` vor jedem Deploy prüfen.
 
 ## Wie diese Session gebaut wurde
 
-Nach dem initialen 12-Task-Build (Session 2, siehe Git-Log) kamen zwei Runden dazu:
+Nach dem initialen 12-Task-Build (Session 2, siehe Git-Log) kamen drei Runden dazu:
 
 1. **Bugfix-Runde** (direkt von Claude, kein Subagent) — Peter meldete "Ready, aber Taste reagiert nicht" und ähnliche Symptome; jeder Fund über `superpowers:systematic-debugging` (Logs, Code lesen, Hypothese, Fix, Rebuild+Redeploy, Re-Test). Fünf echte Bugs gefunden, siehe Gotchas unten.
 2. **Settings-Fenster** — brainstormed, Spec+Plan geschrieben, **an Codex übergeben** (`codex:rescue`-Skill, `Agent`-Tool). Codex konnte in seiner Sandbox **nicht committen** (`.git/index.lock`: "Operation not permitted") — Task 1 blieb uncommitted stehen, Rest lief erst nach erneutem Anstoß **ohne** Commit-Auftrag an Codex durch; Claude hat alle Commits selbst nachgezogen, in denselben Gruppen wie im Plan vorgesehen. Danach unabhängig `swift build`/`swift test` verifiziert, Code stichprobenartig gelesen (main.swift/SettingsWindow.swift), erst dann committet.
+3. **Verlauf (History)** — Peter sagte explizit "mach du alles ... /goal", also autonom durchgezogen: Design selbst entschieden (kein Rückfragen-Loop, da Umfang aus vorherigem Gespräch schon klar), Spec+Plan geschrieben, direkt mit "nicht committen" an Codex übergeben (Lesson aus Runde 2 angewendet) — lief diesmal ohne Blocker durch. Claude hat committet, Code gelesen, Build+Test unabhängig geprüft, live QA gemacht (Peter hat nur kurz bestätigt), dann gepusht.
 
-**Lesson:** Codex-Sandbox kann `.git` nicht schreiben — bei zukünftigen Codex-Handoffs entweder vorher prüfen oder von vornherein "nicht committen, ich committe" instruieren, spart eine Runde.
+**Lesson:** Codex-Sandbox kann `.git` nicht schreiben — bei Codex-Handoffs von vornherein "nicht committen, ich committe" instruieren (in Runde 3 direkt gemacht, lief glatt).
 
 ## Vorfälle Session 2 (Erst-Implementierung, zur Erinnerung)
 
@@ -42,10 +43,9 @@ Ausführlich im Git-Log ab Commit `e195eb8` bis `393b881`. Kurzfassung der 5 Bug
 
 ## Offene Feature-Ideen (gebrainstormt, nach Priorität)
 
-Peter hat diese Reihenfolge gewählt: **Settings-Fenster (✅ fertig) → Verlauf → VAD (Voice Activity Detection statt Taste halten) → Autostart bei Login.**
+Peter hat diese Reihenfolge gewählt: **Settings-Fenster (✅ fertig) → Verlauf (✅ fertig) → VAD (Voice Activity Detection statt Taste halten) → Autostart bei Login.**
 
-- **Verlauf in der Menüleiste** — mehr als nur "letzte Transkription" (das gibt's schon: Doppel-Tap rechte ⌥/gewählte Taste). Noch nicht gebrainstormt (Umfang, Speicherung, UI offen).
-- **VAD** — größter Eingriff, ändert das Interaktionsmodell (halten vs. antippen+Auto-Stop bei Stille). Braucht eigene Design-Runde.
+- **VAD** — nächstes dran. Größter Eingriff, ändert das Interaktionsmodell (halten vs. antippen+Auto-Stop bei Stille). Braucht eigene Design-Runde (noch nicht gebrainstormt).
 - **Autostart bei Login** — kleinster Umfang, zuletzt eingeplant.
 
 ## Setup-Voraussetzungen (unverändert)
